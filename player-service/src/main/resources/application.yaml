@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: player-service
+
+  flyway:
+    table: schema_history
+    out-of-order: true
+    locations: classpath:db/player/migration
+
+server:
+  port: 8050
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka
