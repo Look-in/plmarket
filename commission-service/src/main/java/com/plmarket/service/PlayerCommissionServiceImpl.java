@@ -1,15 +1,14 @@
 package com.plmarket.service;
 
 import com.plmarket.domain.Player;
-import com.plmarket.domain.Team;
 import com.plmarket.repository.PlayerRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Optional;
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.UUID;
 import lombok.NonNull;
-import lombok.Setter;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,23 +19,28 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class PlayerCommissionServiceImpl implements PlayerCommissionService {
 
-    @Setter(onMethod_ = {@Autowired})
-    private PlayerRepository playerRepository;
+    private final PlayerRepository playerRepository;
 
     private static final BigDecimal COST = BigDecimal.valueOf(100000);
 
     @Override
-    public BigDecimal calculate(@NonNull UUID playerId, int month) {
+    public BigDecimal calculate(@NonNull UUID playerId) {
         Player player = playerRepository.findById(playerId).orElseThrow(IllegalArgumentException::new);
-        BigDecimal playerCost = calculate(player, month);
-        return Optional.ofNullable(player.team()).map(Team::commission).map(playerCost::multiply).orElse(playerCost);
+        if (player.team() == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal playerCost = calculate(player);
+        return playerCost.multiply(player.team().commission());
     }
 
-    private BigDecimal calculate(@NonNull Player player, int month) {
-        return COST.multiply(BigDecimal.valueOf(month))
-                .divide(BigDecimal.valueOf(player.age()),2, RoundingMode.DOWN);
+    private BigDecimal calculate(Player player) {
+        int age = Period.between(player.birthday(), LocalDate.now()).getYears();
+        int contractMonth = Period.between(player.contractDate(), LocalDate.now()).getMonths();
+        return COST.multiply(BigDecimal.valueOf(contractMonth))
+                .divide(BigDecimal.valueOf(age), 2, RoundingMode.DOWN);
     }
 
 }

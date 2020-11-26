@@ -2,7 +2,7 @@ package com.plmarket.api;
 
 import com.plmarket.domain.BaseEntity;
 import com.plmarket.model.BaseModel;
-import com.plmarket.repository.BaseRepository;
+import com.plmarket.service.CrudService;
 import java.lang.reflect.ParameterizedType;
 import java.util.List;
 import java.util.UUID;
@@ -10,14 +10,9 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.validation.Valid;
 import lombok.NonNull;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,27 +24,26 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 /**
  * A controller with the basic behavior of inherited BaseEntity objects.
  * To use this class have to implement repository and override abstract method
- * getRepository() returning this rep. Also have to parameterize extended
+ * repository returning this rep. Also have to parameterize extended
  * class by {@link BaseEntity} and {@link BaseModel} inherited classes.
  *
  * @author SShankunas
  */
-@Slf4j
-@Transactional(readOnly = true)
-public abstract class BaseController<T extends BaseEntity, S extends BaseModel> {
+public abstract class BaseController<T extends BaseEntity, M extends BaseModel, S extends CrudService<T>> {
 
-    @Setter(onMethod_ = {@Autowired})
+    @Autowired
     protected ModelMapper modelMapper;
+
+    @Autowired
+    protected S service;
 
     @SuppressWarnings("unchecked")
     private final Class<T> entityClass = (Class<T>) ((ParameterizedType) this.getClass()
             .getGenericSuperclass()).getActualTypeArguments()[0];
 
     @SuppressWarnings("unchecked")
-    private final Class<S> modelClass = (Class<S>) ((ParameterizedType) this.getClass()
+    private final Class<M> modelClass = (Class<M>) ((ParameterizedType) this.getClass()
             .getGenericSuperclass()).getActualTypeArguments()[1];
-
-    protected abstract BaseRepository<T> getRepository();
 
     /**
      * Gets all parameterized objects.
@@ -57,19 +51,8 @@ public abstract class BaseController<T extends BaseEntity, S extends BaseModel> 
      * @return a list of parameterized objects.
      */
     @GetMapping
-    public List<S> findAll() {
-        return toModels(this.getRepository().findAll());
-    }
-
-    /**
-     * Gets page of parameterized objects.
-     *
-     * @param pageable Pageable params.
-     * @return a page of parameterized objects.
-     */
-    @GetMapping("/page")
-    public Page<S> findAllByPage(Pageable pageable) {
-        return toModelPage(getRepository().findAll(pageable));
+    public List<M> findAll() {
+        return toModels(this.service.findAll());
     }
 
     /**
@@ -79,8 +62,8 @@ public abstract class BaseController<T extends BaseEntity, S extends BaseModel> 
      * @return parameterized object.
      */
     @GetMapping("/{id}")
-    public S read(@PathVariable UUID id) {
-        return toModel(this.getRepository().findById(id).orElseThrow(IllegalArgumentException::new));
+    public M read(@PathVariable UUID id) {
+        return toModel(this.service.read(id));
     }
 
     /**
@@ -90,9 +73,8 @@ public abstract class BaseController<T extends BaseEntity, S extends BaseModel> 
      * @return created object.
      */
     @PostMapping
-    @Transactional
-    public S create(@Valid @RequestBody S model) {
-        return toModel(this.getRepository().save(toDomain(model)));
+    public M create(@Valid @RequestBody M model) {
+        return toModel(this.service.create(toDomain(model)));
     }
 
     /**
@@ -102,9 +84,8 @@ public abstract class BaseController<T extends BaseEntity, S extends BaseModel> 
      * @return updated object.
      */
     @PutMapping("/{id}")
-    @Transactional
-    public S update(@Valid @RequestBody S model) {
-        return toModel(this.getRepository().save(toDomain(model)));
+    public M update(@Valid @RequestBody M model) {
+        return toModel(this.service.update(toDomain(model)));
     }
 
     /**
@@ -113,10 +94,9 @@ public abstract class BaseController<T extends BaseEntity, S extends BaseModel> 
      * @param id identity
      */
     @DeleteMapping("/{id}")
-    @Transactional
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID id) {
-        getRepository().deleteById(id);
+        service.delete(id);
     }
 
     /**
@@ -125,7 +105,7 @@ public abstract class BaseController<T extends BaseEntity, S extends BaseModel> 
      * @param model model object.
      * @return domain object.
      */
-    protected T toDomain(@NonNull S model) {
+    protected T toDomain(@NonNull M model) {
         return modelMapper.map(model, entityClass);
     }
 
@@ -135,7 +115,7 @@ public abstract class BaseController<T extends BaseEntity, S extends BaseModel> 
      * @param domain domain object.
      * @return model object.
      */
-    protected S toModel(@NonNull T domain) {
+    protected M toModel(@NonNull T domain) {
         return modelMapper.map(domain, modelClass);
     }
 
@@ -145,19 +125,9 @@ public abstract class BaseController<T extends BaseEntity, S extends BaseModel> 
      * @param domains List of domain object.
      * @return List of model objects.
      */
-    protected List<S> toModels(@NonNull Iterable<T> domains) {
+    protected List<M> toModels(@NonNull Iterable<T> domains) {
         return StreamSupport.stream(domains.spliterator(), false)
                 .map(this::toModel).collect(Collectors.toList());
-    }
-
-    /**
-     * Clones page of the domain object to the page of model objects.
-     *
-     * @param domainPage Page of domain object.
-     * @return Page of model objects.
-     */
-    protected Page<S> toModelPage(@NonNull Page<T> domainPage) {
-        return domainPage.map(this::toModel);
     }
 
 }

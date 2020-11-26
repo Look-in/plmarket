@@ -11,6 +11,6 @@ import lombok.NonNull;
  */
 public interface PlayerCommissionService {
 
-    BigDecimal calculate(@NonNull UUID playerId, int month);
+    BigDecimal calculate(@NonNull UUID playerId);
 
 }

@@ -9,12 +9,14 @@ CREATE TABLE team
 
 CREATE TABLE player
 (
-    id      uuid    NOT NULL,
-    name    varchar NOT NULL UNIQUE,
-    age     int     NOT NULL,
-    team_id uuid,
+    id            uuid    NOT NULL,
+    name          varchar NOT NULL UNIQUE,
+    birthday      date    NOT NULL,
+    contract_date date,
+    team_id       uuid,
     CONSTRAINT player_pkey PRIMARY KEY (id),
-    CONSTRAINT player_age_range_check CHECK (age >= 18 AND age < 60),
+    CONSTRAINT player_birthday_check CHECK (birthday < now()),
+    CONSTRAINT player_contract_date_check CHECK (team_id IS NULL OR contract_date IS NOT NULL),
     CONSTRAINT player_team_id_fkey
         FOREIGN KEY (team_id) REFERENCES team
 );
