@@ -12,7 +12,7 @@ import org.springframework.test.context.TestPropertySource;
  * The database automatically starts in Docker at the beginning of testing,
  * initializes and stops at the end of the testing.
  *
- * @author azabezhinsky
+ * @author sshankunas
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
